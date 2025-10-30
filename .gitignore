@@ -1,0 +1,17 @@
+# Node / frontend
+node_modules/
+dist/
+.env
+.vite/
+
+# PHP / backend
+/vendor/
+/storage/
+*.log
+.env
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
