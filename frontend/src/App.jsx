@@ -20,10 +20,14 @@ function App() {
           <label>Mot de passe</label>
           <input type="password" placeholder="Entrez votre mot de passe" />
         </div>
-        <div> <label >don't have account</label>creat<a></a></div>
      
 
         <button type="submit">Se connecter</button>
+            <p className="signup-text">
+          Vous n'avez pas de compte ?{" "}
+          <a href="#" className="signup-link">Créer un compte</a>
+        </p>
+
       </form>
     </div>
   );
