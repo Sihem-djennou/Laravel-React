@@ -61,3 +61,6 @@ button {
 button:hover {
   background-color: #6a11cb;
 }
+.login-container p{
+  color: #333;
+}
