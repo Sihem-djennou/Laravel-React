@@ -1,0 +1,197 @@
+/* Auth.css */
+
+:root {
+  --orange-light: #ff9f1a;
+  --orange-main: #ff6f00;
+  --orange-dark: #cc5500;
+  --text-light: #fff;
+  --bg-light: #fff7e6;
+  --error-red: #ff4d4d;
+}
+
+.auth-container {
+  width: 360px;
+  margin: 2rem auto;
+  perspective: 1500px; /* perspective for 3D flip */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  user-select: none;
+  background: var(--bg-light);
+  border-radius: 15px;
+  box-shadow: 0 12px 24px rgba(255, 111, 0, 0.3);
+  padding: 20px;
+}
+
+/* Tabs */
+.tab-buttons {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.tab-buttons button {
+  flex: 1;
+  padding: 12px 0;
+  margin: 0 10px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  background: transparent;
+  border: 2px solid var(--orange-main);
+  border-radius: 50px;
+  color: var(--orange-main);
+  transition: all 0.4s ease;
+  box-shadow: 0 0 5px transparent;
+}
+
+.tab-buttons button.active,
+.tab-buttons button:hover {
+  background: var(--orange-main);
+  color: var(--text-light);
+  box-shadow: 0 4px 14px var(--orange-main);
+}
+
+/* Flip card container */
+.form-card {
+  width: 100%;
+  height: 420px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 15px;
+  box-shadow:
+    0 8px 16px rgba(255, 111, 0, 0.3),
+    inset 0 0 35px var(--orange-light);
+  background: linear-gradient(45deg, var(--orange-light), var(--orange-main));
+}
+
+/* Trigger flip */
+.form-card.flip {
+  transform: rotateY(180deg);
+}
+
+/* Forms: Front and back */
+.form {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  padding: 30px 25px;
+  box-sizing: border-box;
+  border-radius: 15px;
+  backface-visibility: hidden;
+  color: var(--text-light);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Login form front side */
+.login-form {
+  background: linear-gradient(135deg, var(--orange-main), var(--orange-dark));
+  transform: rotateY(0deg);
+}
+
+/* Register form back side */
+.register-form {
+  background: linear-gradient(135deg, var(--orange-dark), var(--orange-main));
+  transform: rotateY(180deg);
+}
+
+/* Headings */
+.form h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 2rem;
+  letter-spacing: 1.5px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Error messages */
+.error {
+  background-color: var(--error-red);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  text-align: center;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 0 10px var(--error-red);
+}
+
+/* Inputs */
+.form input {
+  margin-bottom: 18px;
+  padding: 12px 15px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.form input::placeholder {
+  color: #ffe6b3;
+}
+
+/* Input focus effect */
+.form input:focus {
+  box-shadow: 0 0 12px var(--text-light);
+  background-color: #fff3e6;
+  color: var(--orange-dark);
+  font-weight: 600;
+}
+
+/* Buttons */
+.form button {
+  margin-top: 10px;
+  padding: 12px 0;
+  font-weight: 700;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 50px;
+  color: var(--text-light);
+  background: linear-gradient(45deg, var(--orange-main), var(--orange-dark));
+  cursor: pointer;
+  transition: background 0.5s ease, box-shadow 0.3s ease;
+  box-shadow: 0 5px 15px rgba(255, 111, 0, 0.5);
+}
+
+.form button:hover {
+  background: linear-gradient(45deg, var(--orange-light), var(--orange-main));
+  box-shadow: 0 8px 20px rgba(255, 143, 0, 0.8);
+  transform: scale(1.05);
+}
+
+/* Smooth flip trigger on tab change */
+.tab-buttons button {
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-buttons button::after {
+  content: "";
+  position: absolute;
+  left: -100%;
+  top: 0;
+  width: 200%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.25), transparent 80%);
+  transform: skewX(-25deg);
+  transition: left 0.7s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.tab-buttons button:hover::after,
+.tab-buttons button.active::after {
+  left: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+  .auth-container {
+    width: 95%;
+  }
+}
