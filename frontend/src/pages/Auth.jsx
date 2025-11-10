@@ -20,6 +20,7 @@ function Auth() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoginError("");
 
     try {
       const response = await axiosClient.post("/login", {
@@ -27,38 +28,56 @@ function Auth() {
         password: loginPassword,
       });
 
+      // ✅ Store both token and user data
       localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      
+      console.log("Login successful:", response.data);
       window.location.href = "/dashboard";
 
-    } catch {
-      setLoginError("Email ou mot de passe incorrect");
+    } catch (error) {
+      console.error("Login error:", error);
+      setLoginError(error.response?.data?.message || "Email ou mot de passe incorrect");
     }
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
+    setRegisterError("");
 
-    axiosClient
-      .post("/register", {
+    try {
+      const response = await axiosClient.post("/register", {
         name,
         email,
         password,
         password_confirmation,
-      })
-      .then(() => {
-        alert("Compte créé ✅");
-        setActiveTab("login");
-        setFlip(false);
-      })
-      .catch((err) => {
-        setRegisterError(err.response?.data?.message || "Erreur");
       });
+
+      alert("Compte créé ✅");
+      console.log("Registration successful:", response.data);
+      
+      // Auto-login after registration
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      window.location.href = "/dashboard";
+
+    } catch (error) {
+      console.error("Registration error:", error);
+      setRegisterError(
+        error.response?.data?.message || 
+        error.response?.data?.errors?.email?.[0] || 
+        "Erreur lors de la création du compte"
+      );
+    }
   };
 
   // Switch tab
   const switchTab = (tab) => {
     setActiveTab(tab);
     setFlip(tab === "register");
+    // Clear errors when switching tabs
+    setLoginError("");
+    setRegisterError("");
   };
 
   return (
@@ -136,6 +155,7 @@ function Auth() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength="6"
           />
 
           <input
@@ -144,6 +164,7 @@ function Auth() {
             value={password_confirmation}
             onChange={(e) => setConfirm(e.target.value)}
             required
+            minLength="6"
           />
 
           <button type="submit">Créer le compte</button>

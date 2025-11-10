@@ -2,11 +2,15 @@ import axios from "axios";
 
 const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  },
 });
 
 // ✅ Attach token automatically
 axiosClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("TOKEN");
+  const token = localStorage.getItem("token"); // FIXED the key
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -17,8 +21,8 @@ axiosClient.interceptors.request.use((config) => {
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem("TOKEN");
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
       window.location.href = "/";
     }
     return Promise.reject(error);
