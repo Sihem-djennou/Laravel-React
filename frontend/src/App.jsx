@@ -1,7 +1,7 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 
-import Auth from "./pages/Auth.jsx";
+import Auth from "./pages/Auth"; // Votre fichier existant
 import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 

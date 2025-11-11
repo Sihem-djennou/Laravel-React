@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import axiosClient from "../axiosClient";
 import "./Auth.css";
 
 function Auth() {
+  const [showAuth, setShowAuth] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [flip, setFlip] = useState(false);
 
@@ -15,11 +16,13 @@ function Auth() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [password_confirmation, setConfirm] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [registerError, setRegisterError] = useState("");
 
+  // 🔐 Connexion backend
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoginError("");
 
     try {
       const response = await axiosClient.post("/login", {
@@ -27,129 +30,184 @@ function Auth() {
         password: loginPassword,
       });
 
+      // ✅ Sauvegarder token et user
       localStorage.setItem("token", response.data.token);
-      window.location.href = "/dashboard";
+      localStorage.setItem("user", JSON.stringify(response.data.user));
 
-    } catch {
-      setLoginError("Email ou mot de passe incorrect");
+      console.log("Login réussi :", response.data);
+      window.location.href = "/dashboard";
+    } catch (error) {
+      console.error("Erreur de connexion :", error);
+      setLoginError(
+        error.response?.data?.message || "Email ou mot de passe incorrect"
+      );
     }
   };
 
-  const handleRegister = (e) => {
+  // 🧾 Inscription backend
+  const handleRegister = async (e) => {
     e.preventDefault();
+    setRegisterError("");
 
-    axiosClient
-      .post("/register", {
+    try {
+      const response = await axiosClient.post("/register", {
         name,
         email,
         password,
-        password_confirmation,
-      })
-      .then(() => {
-        alert("Compte créé ✅");
-        setActiveTab("login");
-        setFlip(false);
-      })
-      .catch((err) => {
-        setRegisterError(err.response?.data?.message || "Erreur");
+        password_confirmation: passwordConfirmation,
       });
+
+      alert("Compte créé avec succès ✅");
+
+      // ✅ Auto-login après inscription
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      window.location.href = "/dashboard";
+    } catch (error) {
+      console.error("Erreur d'inscription :", error);
+      setRegisterError(
+        error.response?.data?.message ||
+          error.response?.data?.errors?.email?.[0] ||
+          "Erreur lors de la création du compte"
+      );
+    }
   };
 
-  // Switch tab
+  // 🎭 Changer d’onglet
   const switchTab = (tab) => {
     setActiveTab(tab);
     setFlip(tab === "register");
+    setLoginError("");
+    setRegisterError("");
   };
 
   return (
-    <div className="auth-container">
+    <div className="get-started-container">
+      <div className={`background ${showAuth ? "blurred" : ""}`} />
 
-      {/* ✅ TABS */}
-      <div className="tab-buttons">
-        <button
-          onClick={() => switchTab("login")}
-          className={activeTab === "login" ? "active" : ""}
-        >
-          Sign In
-        </button>
+      {/* 🔘 Bouton Get Started */}
+      {!showAuth && (
+        <div className="get-started-button-container">
+          <button
+            onClick={() => setShowAuth(true)}
+            className="get-started-button"
+          >
+            Get Started
+          </button>
+        </div>
+      )}
 
-        <button
-          onClick={() => switchTab("register")}
-          className={activeTab === "register" ? "active" : ""}
-        >
-          Sign Up
-        </button>
-      </div>
+      {/* 🪟 Modale d’authentification */}
+      {showAuth && (
+        <div className="auth-modal-overlay">
+          <div className="auth-container">
+            <div className="tab-buttons">
+              <button
+                onClick={() => switchTab("login")}
+                className={`tab-button ${activeTab === "login" ? "active" : ""}`}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => switchTab("register")}
+                className={`tab-button ${activeTab === "register" ? "active" : ""}`}
+              >
+                Sign Up
+              </button>
+            </div>
 
-      {/* ✅ FLIP CARD */}
-      <div className={`form-card ${flip ? "flip" : ""}`}>
+            <div className="flip-card-wrapper">
+              <div className={`flip-card ${flip ? "flipped" : ""}`}>
+                {/* 🔐 LOGIN FORM */}
+                <form onSubmit={handleLogin} className="form form-front">
+                  <h2>Connexion</h2>
+                  {loginError && <p className="form-error">{loginError}</p>}
 
-        {/* ✅ LOGIN FORM */}
-        <form className="form login-form" onSubmit={handleLogin}>
-          <h2>Connexion</h2>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required
+                    className="form-input"
+                  />
 
-          {loginError && <p className="error">{loginError}</p>}
+                  <input
+                    type="password"
+                    placeholder="Mot de passe"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    className="form-input"
+                  />
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={loginEmail}
-            onChange={(e) => setLoginEmail(e.target.value)}
-            required
-          />
+                  <button type="submit" className="form-button">
+                    Se connecter
+                  </button>
+                </form>
 
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={loginPassword}
-            onChange={(e) => setLoginPassword(e.target.value)}
-            required
-          />
+                {/* 🧾 REGISTER FORM */}
+                <form onSubmit={handleRegister} className="form form-back">
+                  <h2>Créer un compte</h2>
+                  {registerError && (
+                    <p className="form-error">{registerError}</p>
+                  )}
 
-          <button type="submit">Se connecter</button>
-        </form>
+                  <input
+                    type="text"
+                    placeholder="Nom d'utilisateur"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="form-input"
+                  />
 
-        {/* ✅ REGISTER FORM */}
-        <form className="form register-form" onSubmit={handleRegister}>
-          <h2>Créer un compte</h2>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="form-input"
+                  />
 
-          {registerError && <p className="error">{registerError}</p>}
+                  <input
+                    type="password"
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength="6"
+                    className="form-input"
+                  />
 
-          <input
-            placeholder="Nom d'utilisateur"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+                  <input
+                    type="password"
+                    placeholder="Confirmez le mot de passe"
+                    value={passwordConfirmation}
+                    onChange={(e) => setPasswordConfirmation(e.target.value)}
+                    required
+                    minLength="6"
+                    className="form-input"
+                  />
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+                  <button type="submit" className="form-button">
+                    Créer le compte
+                  </button>
+                </form>
+              </div>
+            </div>
 
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          <input
-            type="password"
-            placeholder="Confirmez le mot de passe"
-            value={password_confirmation}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-          />
-
-          <button type="submit">Créer le compte</button>
-        </form>
-
-      </div>
+            {/* 🔙 Bouton fermer */}
+            <button
+              className="close-modal"
+              onClick={() => setShowAuth(false)}
+            >
+              ✖
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
