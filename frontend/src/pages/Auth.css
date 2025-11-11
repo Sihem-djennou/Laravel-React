@@ -237,3 +237,20 @@ html, body, #root {
     width: 90%;
   }
 }
+.close-modal {
+  position: absolute;
+  top: -15px;
+  right: -10px;
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  font-weight: bold;
+  color: #fff;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.close-modal:hover {
+  color: #ff5555;
+  transform: scale(1.1);
+}
