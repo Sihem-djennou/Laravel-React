@@ -1,157 +1,100 @@
-import { useState, useRef, useEffect } from 'react';
-/*import { Search, Network, User, LogOut } from 'lucide-react';*/
-/*import { supabase } from '../lib/supabase';*/
-import './Dashboard.css';
+import React, { useEffect, useState } from "react";
+import axiosClient from "../axiosClient";
+import "./Dashboard.css";
+import { FiHome, FiFolder, FiPlusCircle, FiLogOut, FiMenu } from "react-icons/fi";
 
-export function Dashboard() {
+function Dashboard() {
   const [projects, setProjects] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('home');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    fetchProjects();
+    axiosClient
+      .get("/projects")
+      .then(({ data }) => {
+        setProjects(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading projects:", err);
+        setLoading(false);
+      });
   }, []);
 
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching projects:', error);
-      return;
-    }
-
-    setProjects(data || []);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload();
-  };
-
-  const filteredProjects = projects.filter((project) =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+  // ======== LOGOUT =========
+  const handleLogout = () => {
+    axiosClient
+      .logout()
+      .catch(() => {})
+      .finally(() => {
+        localStorage.removeItem("token");
+        window.location.href = "/";
+      });
   };
 
   return (
     <div className="dashboard-container">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <Network className="logo-icon" strokeWidth={2.5} />
-            <h1 className="logo-text">MANAJECT</h1>
-          </div>
+
+      {/* ===== HEADER ===== */}
+      <header className="header">
+        <div className="header-left">
+          <FiMenu className="menu-icon" onClick={() => setSidebarOpen(!sidebarOpen)} />
+          <h1 className="header-title">Dashboard</h1>
         </div>
 
-        <nav className="sidebar-nav">
-          <button
-            onClick={() => setActiveTab('home')}
-            className={`nav-button ${activeTab === 'home' ? 'active' : ''}`}
-          >
-            Home
-          </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`nav-button ${activeTab === 'profile' ? 'active' : ''}`}
-          >
-            Profile
-          </button>
-          <button
-            onClick={() => setActiveTab('project')}
-            className={`nav-button ${activeTab === 'project' ? 'active' : ''}`}
-          >
-            Project
-          </button>
-        </nav>
+        {/* Bouton Déconnexion */}
+        <button className="logout-btn" onClick={handleLogout}>
+          <FiLogOut /> Déconnexion
+        </button>
+      </header>
+
+      {/* ===== SIDEBAR ===== */}
+      <aside className={`sidebar ${sidebarOpen ? "open" : "closed"}`}>
+        <h2 className="sidebar-title">Navigation</h2>
+
+        <button className="sidebar-item">
+          <FiHome /> Accueil
+        </button>
+
+        <button className="sidebar-item">
+          <FiFolder /> Mes Projets
+        </button>
+
+        <button className="sidebar-item">
+          <FiPlusCircle /> Nouveau Projet
+        </button>
       </aside>
 
-      <main className="main-content">
-        <header className="header">
-          <button className="create-button">
-            CREATE NEW PROJECT
+      {/* ===== CONTENT ===== */}
+      <main className="content">
+        <div className="content-header">
+          <h2 className="section-title">Mes Projets</h2>
+
+          <button className="create-project-btn">
+            <FiPlusCircle /> Nouveau Projet
           </button>
-
-          <div className="search-container">
-            <Search className="search-icon" />
-            <input
-              type="text"
-              placeholder="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
-
-          <div className="profile-dropdown-container" ref={dropdownRef}>
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="profile-button"
-            >
-              <User className="profile-icon" />
-            </button>
-
-            {isDropdownOpen && (
-              <div className="dropdown-menu">
-                <button
-                  onClick={handleLogout}
-                  className="dropdown-item"
-                >
-                  <LogOut className="dropdown-icon" />
-                  Déconnexion
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <div className="projects-content">
-          <div className="projects-wrapper">
-            {filteredProjects.length === 0 ? (
-              <div className="empty-state">
-                {searchTerm ? 'No projects found matching your search' : 'No projects yet'}
-              </div>
-            ) : (
-              filteredProjects.map((project) => (
-                <div key={project.id} className="project-card">
-                  <h3 className="project-title">{project.name}</h3>
-                  <div className="project-dates">
-                    <div className="date-box">
-                      <span className="date-text">start date: {formatDate(project.start_date)}</span>
-                    </div>
-                    <div className="date-box">
-                      <span className="date-text">end date: {formatDate(project.end_date)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </div>
+
+        {loading ? (
+          <p className="loading">Chargement des projets...</p>
+        ) : projects.length === 0 ? (
+          <p className="no-projects">Vous n'avez aucun projet.</p>
+        ) : (
+          <div className="project-grid">
+            {projects.map((project) => (
+              <div key={project.id} className="project-card">
+                <h3>{project.name}</h3>
+                <p>{project.description || "Aucune description."}</p>
+
+                <button className="view-btn">Voir le Projet</button>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
+
     </div>
   );
 }
+
+export default Dashboard;

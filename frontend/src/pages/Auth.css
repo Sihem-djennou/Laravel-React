@@ -16,11 +16,12 @@ html, body, #root {
 .background {
   position:fixed;
   inset: 0;
-  background-image: url('C:\Users\lenove\Desktop\Laravel-React\Laravel-React\frontend\src\assets\Untitled (2).png');
+  background-image: url('C:\Users\lenove\Desktop\Laravel-React\Laravel-React\frontend\src\assets\fond.png');
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
   transition: filter 0.5s ease;
+   background-color: #FF9F1A !important;
   z-index: 1;
 }
 
@@ -31,18 +32,18 @@ html, body, #root {
 /* === Bouton Get Started === */
 .get-started-button-container {
   position: relative;  /* Absolu par rapport à .get-started-container */
-  top: 500px;           /* distance du haut */
-  right: -500px;         /* distance de la droite */
+  top: 10px;           /* distance du haut */
+  right: -1200px;         /* distance de la droite */
   z-index: 10;
 }
 
 .get-started-button {
-  padding: 12px 28px;
-  font-size: 16px;
+  padding: 20px 30px;
+  font-size: 18px;
   font-weight: bold;
-  color: white;
-  background:#ff6f00;
-  border: none;
+  color:white;
+  background: transparent;
+  border: #FF725E;
   border-radius: 50px;
   box-shadow: 0 4px 15px rgba(255, 111, 0, 0.5);
   cursor: pointer;

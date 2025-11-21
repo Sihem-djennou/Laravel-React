@@ -90,7 +90,7 @@ function Auth() {
         <div className="get-started-button-container">
           <button
             onClick={() => setShowAuth(true)}
-            className="get-started-button"
+            className="tab-button"
           >
             Get Started
           </button>
