@@ -1,8 +1,9 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 
-import Auth from "./pages/Auth"; // Votre fichier existant
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import ProjectDetails from "./pages/ProjectDetails"; // Add this import
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -17,6 +18,15 @@ function App() {
             <Dashboard />
           </ProtectedRoute>
         }
+      />
+      
+      <Route 
+        path="/projects/:projectId" 
+        element={
+          <ProtectedRoute>
+            <ProjectDetails />
+          </ProtectedRoute>
+        } 
       />
     </Routes>
   );
