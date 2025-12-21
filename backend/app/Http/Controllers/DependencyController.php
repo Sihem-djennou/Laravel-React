@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Models\Task;
 use App\Models\Dependency;
 use Illuminate\Http\Request;
 
@@ -45,4 +45,5 @@ class DependencyController extends Controller
         $dependency->delete();
         return response()->json(['message' => 'Dependency deleted']);
     }
+    
 }

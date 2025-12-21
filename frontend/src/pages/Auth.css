@@ -255,3 +255,44 @@ html, body, #root {
   color: #ff5555;
   transform: scale(1.1);
 }
+.otp-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.otp-container {
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  width: 350px;
+  text-align: center;
+  position: relative;
+}
+
+.otp-container .form-input {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.otp-container .form-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.otp-container .close-modal {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
