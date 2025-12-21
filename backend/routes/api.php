@@ -37,6 +37,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('tasks',        TaskController::class);
     Route::apiResource('dependencies', DependencyController::class);
     Route::apiResource('task-updates', TaskUpdateController::class);
+       // ✅ AJOUTE ÇA
+    Route::post('/projects/{projectId}/tasks', [TaskController::class, 'store']);
+    Route::get('/projects/{projectId}/tasks', [TaskController::class, 'getProjectTasks']);
 });
 
 
@@ -48,4 +51,40 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 Route::get('/test', function () {
     return response()->json(['message' => 'API works ✅']);
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| otp
+|--------------------------------------------------------------------------
+*/
+
+
+Route::post('/send-otp', [AuthController::class, 'sendOTP']);
+Route::post('/verify-otp', [AuthController::class, 'verifyOTP']);
+
+// Routes pour les tâches
+Route::prefix('projects/{projectId}')->group(function () {
+    Route::get('/tasks', [TaskController::class, 'getProjectTasks']);
+});
+
+Route::apiResource('tasks', TaskController::class);
+Route::post('/projects/{project}/tasks', [TaskController::class, 'store']);
+// Route de débogage pour voir la structure de la table
+Route::get('/debug/dependencies-structure', function() {
+    $structure = \DB::select('SHOW CREATE TABLE dependencies');
+    $dependencies = \DB::table('dependencies')->get();
+    
+    return response()->json([
+        'table_structure' => $structure[0]->{'Create Table'},
+        'total_dependencies' => $dependencies->count(),
+        'dependencies' => $dependencies
+    ]);
+});
+Route::middleware(['auth:sanctum'])->group(function () {
+    // ... autres routes
+    Route::apiResource('tasks', TaskController::class); // Cela inclut PUT /tasks/{id}
+    // OU spécifiquement
+    Route::put('/tasks/{task}', [TaskController::class, 'update']);
 });

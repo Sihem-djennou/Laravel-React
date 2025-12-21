@@ -17,7 +17,14 @@ function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  // OTP state
+const [otpEmail, setOtpEmail] = useState("");
+const [otpCode, setOtpCode] = useState("");
+const [otpStep, setOtpStep] = useState(false); // false = pas encore envoyé
+const [otpMessage, setOtpMessage] = useState("");
+
   const [registerError, setRegisterError] = useState("");
+  
 
   // 🔐 Connexion backend
   const handleLogin = async (e) => {
@@ -45,33 +52,91 @@ function Auth() {
   };
 
   // 🧾 Inscription backend
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setRegisterError("");
+  // 🧾 Inscription backend
+const handleRegister = async (e) => {
+  e.preventDefault();
+  setRegisterError("");
+  setOtpMessage("");
 
-    try {
-      const response = await axiosClient.post("/register", {
-        name,
-        email,
-        password,
-        password_confirmation: passwordConfirmation,
-      });
+  try {
+    const response = await axiosClient.post("/register", {
+      name,
+      email,
+      password,
+      password_confirmation: passwordConfirmation,
+    });
 
-      alert("Compte créé avec succès ✅");
+    setOtpEmail(email);       // email pour envoyer le OTP
+    setOtpStep(true);         // déclenche la modale OTP
 
-      // ✅ Auto-login après inscription
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      window.location.href = "/dashboard";
-    } catch (error) {
-      console.error("Erreur d'inscription :", error);
-      setRegisterError(
-        error.response?.data?.message ||
-          error.response?.data?.errors?.email?.[0] ||
-          "Erreur lors de la création du compte"
-      );
-    }
-  };
+    // 🔑 Appel de la fonction pour envoyer l'OTP
+    const otpResponse = await axiosClient.post("/send-otp", { email });
+    setOtpMessage(otpResponse.data.message);
+
+  } catch (error) {
+    console.error("Erreur d'inscription :", error);
+    setRegisterError(
+      error.response?.data?.message ||
+      error.response?.data?.errors?.email?.[0] ||
+      "Erreur lors de la création du compte"
+    );
+  }
+};
+
+
+
+// 🔑 OTP - envoyer
+const handleSendOTP = async (e) => {
+  e.preventDefault();
+  setOtpMessage("");
+
+  try {
+    const response = await axiosClient.post("/send-otp", {
+      email: otpEmail
+    });
+    setOtpMessage(response.data.message);
+    setOtpStep(true);
+  } catch (error) {
+    console.error("Erreur OTP :", error);
+    setOtpMessage(error.response?.data?.error || "Erreur lors de l'envoi du OTP");
+  }
+};
+
+// 🔑 OTP - vérifier
+const handleVerifyOTP = async (e) => {
+  e.preventDefault();
+  setOtpMessage("");
+
+  try {
+    // 1️⃣ Vérifier l’OTP
+    await axiosClient.post("/verify-otp", {
+      email: otpEmail,
+      otp: otpCode.trim()
+    });
+
+    // 2️⃣ LOGIN AUTOMATIQUE après OTP
+    const loginResponse = await axiosClient.post("/login", {
+      email: otpEmail,
+      password: password // mot de passe utilisé lors de l'inscription
+    });
+
+    // 3️⃣ Sauvegarde token + user
+    localStorage.setItem("token", loginResponse.data.token);
+    localStorage.setItem("user", JSON.stringify(loginResponse.data.user));
+
+    // 4️⃣ Redirection
+    window.location.href = "/dashboard";
+
+  } catch (error) {
+    console.error("Erreur vérification OTP :", error);
+    setOtpMessage(error.response?.data?.error || "OTP incorrect");
+  }
+};
+
+
+
+
+
 
   // 🎭 Changer d’onglet
   const switchTab = (tab) => {
@@ -198,13 +263,45 @@ function Auth() {
               </div>
             </div>
 
-            {/* 🔙 Bouton fermer */}
-            <button
-              className="close-modal"
-              onClick={() => setShowAuth(false)}
-            >
-              ✖
-            </button>
+            {/* 🔙 Bouton fermer (Sign In / Sign Up) */}
+<button
+  className="close-modal"
+  onClick={() => setShowAuth(false)}
+>
+  ✖
+</button>
+
+{/* 📝 OTP Modal */}
+{otpStep && (
+  <div className="otp-modal-overlay">
+    <div className="otp-container">
+      <h2>Vérification OTP</h2>
+
+      <form onSubmit={handleVerifyOTP}>
+        <input
+          type="text"
+          placeholder="Entrez le code OTP"
+          value={otpCode}
+          onChange={(e) => setOtpCode(e.target.value)}
+          required
+          className="form-input"
+        />
+        <button type="submit" className="form-button">Vérifier OTP</button>
+      </form>
+
+      {otpMessage && <p className="form-error">{otpMessage}</p>}
+
+      <button
+        className="close-modal"
+        onClick={() => { setOtpStep(false); setOtpMessage(""); }}
+      >
+        ✖
+      </button>
+    </div>
+  </div>
+)}
+
+
           </div>
         </div>
       )}
