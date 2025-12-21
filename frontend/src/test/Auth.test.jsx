@@ -1,16 +1,14 @@
 // src/test/Auth.test.jsx
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, test, vi, expect, beforeEach } from "vitest";
-import Auth from "../pages/Auth"; // adapte le chemin si nécessaire
+import { describe, test, vi, beforeEach, expect } from "vitest";
+import Auth from "../pages/Auth";
 import axiosClient from "../axiosClient";
 
-// Remplace jest.mock par vi.mock pour Vitest
 vi.mock("../axiosClient");
 
-describe("Auth Component", () => {
+describe("Auth Component - Tests unitaires", () => {
   beforeEach(() => {
-    // Clear mocks avant chaque test
     vi.clearAllMocks();
     localStorage.clear();
   });
@@ -18,6 +16,13 @@ describe("Auth Component", () => {
   test("affiche le bouton Get Started", () => {
     render(<Auth />);
     expect(screen.getByText("Get Started")).toBeInTheDocument();
+  });
+});
+
+describe("Auth Component - Tests d'intégration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
   });
 
   test("ouvre la modale après clic", () => {
@@ -30,13 +35,11 @@ describe("Auth Component", () => {
   test("bascule vers l’onglet Register (flip card)", () => {
     render(<Auth />);
     fireEvent.click(screen.getByText("Get Started"));
-
     fireEvent.click(screen.getByText("Sign Up"));
     expect(screen.getByPlaceholderText("Nom d'utilisateur")).toBeInTheDocument();
   });
 
   test("réalise un login réussi", async () => {
-    // Mock axiosClient pour le login réussi
     axiosClient.post.mockResolvedValue({
       data: { token: "abc123", user: { name: "Test" } },
     });
@@ -58,7 +61,6 @@ describe("Auth Component", () => {
   });
 
   test("affiche une erreur de login", async () => {
-    // Mock axiosClient pour retourner une erreur
     axiosClient.post.mockRejectedValue({
       response: { data: { message: "Email incorrect" } },
     });
@@ -75,9 +77,7 @@ describe("Auth Component", () => {
     fireEvent.click(screen.getByText("Se connecter"));
 
     await waitFor(() => {
-      expect(
-        screen.getByText((content) => content.includes("Email incorrect"))
-      ).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Email incorrect"))).toBeInTheDocument();
     });
   });
 

@@ -152,6 +152,12 @@ const Dashboard = () => {
   const handleViewDetails = (projectId) => {
     navigate(`/projects/${projectId}`);
   };
+  // Logout
+const handleLogout = () => {
+  localStorage.clear(); // supprime token + user
+  navigate('/');
+};
+
 
   // Sidebar menu items
   const menuItems = [
@@ -208,10 +214,13 @@ const Dashboard = () => {
 
           {/* Sidebar Footer */}
           <div className="sidebar-footer">
-            <button className="logout-btn">
-              <span className="logout-icon">🚪</span>
-              Logout
-            </button>
+            <button
+  className="logout-btn"
+  onClick={handleLogout}
+>
+  <span className="logout-icon">🚪</span>
+  Logout
+</button>
           </div>
         </div>
       </aside>
