@@ -14,10 +14,14 @@ class ProjectController extends Controller
     }
 
     // Get specific project
-    public function show(Project $project)
-    {
-        return $project->load('tasks');
-    }
+    public function show($id)
+{
+    $project = Project::with(['tasks' => function ($query) {
+        $query->with('predecessors.predecessor');
+    }])->findOrFail($id);
+    
+    return response()->json($project);
+}
 
     // Create a new project
     public function store(Request $request)

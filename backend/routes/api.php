@@ -8,7 +8,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\DependencyController;
 use App\Http\Controllers\TaskUpdateController;
-
+use App\Http\Controllers\PertController; //
 /*
 |--------------------------------------------------------------------------
 | AUTH ROUTES (Public)
@@ -40,11 +40,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
        // ✅ AJOUTE ÇA
     Route::post('/projects/{projectId}/tasks', [TaskController::class, 'store']);
     Route::get('/projects/{projectId}/tasks', [TaskController::class, 'getProjectTasks']);
+    Route::get('/projects/{project}/pert', [PertController::class, 'generate']);
+
 });
 
 
 /*
-|--------------------------------------------------------------------------
+|
 | TEST ROUTE (Public)
 |--------------------------------------------------------------------------
 */
@@ -88,3 +90,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // OU spécifiquement
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
 });
+// Tasks routes
+Route::get('/projects/{project}/tasks', [TaskController::class, 'index']);
+Route::post('/projects/{project}/tasks', [TaskController::class, 'store']);
+Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+
+// Dependencies routes
+Route::get('/projects/{project}/dependencies', [DependencyController::class, 'index']);
+Route::post('/projects/{project}/dependencies', [DependencyController::class, 'store']);
+Route::delete('/dependencies/{dependency}', [DependencyController::class, 'destroy']);
+
+// PERT route (déjà existante)
+Route::get('/projects/{project}/pert', [PertController::class, 'generate']);

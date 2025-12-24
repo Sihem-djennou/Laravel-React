@@ -12,8 +12,7 @@ class Dependency extends Model
         'successor_task_id',
     ];
 
-   
-
+    
     public $timestamps = false; // 🔥 OBLIGATOIRE
      // ⭐⭐ AJOUTEZ CES RELATIONS ⭐⭐
     

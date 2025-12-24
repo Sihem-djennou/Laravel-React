@@ -9,7 +9,7 @@ class Task extends Model
 {
     use HasFactory;
 
- protected $fillable = [
+protected $fillable = [
     'project_id',
     'name',
     'description',
@@ -18,10 +18,12 @@ class Task extends Model
     'pessimistic_time',
     'expected_time',
     'start_date',
-    'end_date',
-    'predecessors',
+    'duration',
     'progress',
 ];
+protected $appends = ['end_date'];
+
+
 
     // A task belongs to one project
     public function project()
@@ -37,6 +39,17 @@ public function predecessors()
         'successor_task_id'
     );
 }
+ public function getEndDateAttribute()
+    {
+        if (!$this->start_date || !$this->duration) {
+            return null;
+        }
+
+        return \Carbon\Carbon::parse($this->start_date)
+            ->addDays($this->duration)
+            ->toDateString();
+    }
+
 
 // Tâches qui dépendent de celle-ci
 public function successors()

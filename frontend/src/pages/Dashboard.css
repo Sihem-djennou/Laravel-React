@@ -604,6 +604,22 @@ body {
   padding: 18px 35px;
   font-size: 16px;
 }
+.pert-btn {
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pert-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(37, 117, 252, 0.4);
+}
+
 
 /* === RESPONSIVE DESIGN FOR ALL SCREENS === */
 
@@ -1742,4 +1758,216 @@ body {
 
 .dropdown-menu {
   z-index: 2001;
+}
+/* PERT Modal Styles */
+/* Styles pour le modal PERT */
+/* ================= PERT MODAL STYLES ================= */
+/* ================= PERT MODAL STYLES ================= */
+.pert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeInOverlay 0.3s ease;
+}
+
+.pert-modal {
+  background: #ffffff;
+  width: 95%;
+  height: 90%;
+  max-width: 1400px;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pert-header {
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #1a1a1a, #ff6f00);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pert-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+
+.close-btn:hover {
+  transform: scale(1.2);
+}
+
+.pert-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  padding: 1.5rem;
+  gap: 1.5rem;
+  height: calc(100% - 80px);
+}
+
+.critical-path {
+  flex: 0 0 300px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 111, 0, 0.2);
+  overflow-y: auto;
+}
+
+.critical-path h3 {
+  color: #1a1a1a;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  border-bottom: 2px solid rgba(255, 111, 0, 0.3);
+  padding-bottom: 0.5rem;
+}
+
+.path-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.path-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 111, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.path-item:hover {
+  border-color: #ff6f00;
+  box-shadow: 0 4px 12px rgba(255, 111, 0, 0.1);
+}
+
+.path-index {
+  background: #ff6f00;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.pert-graph-container {
+  flex: 1;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 111, 0, 0.2);
+  overflow: hidden;
+  position: relative;
+  min-height: 500px;
+}
+
+/* ReactFlow container styling */
+.reactflow-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.empty-pert-graph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+
+.empty-pert-graph p {
+  margin: 0.5rem 0;
+}
+
+/* Responsive pour le modal PERT */
+@media (max-width: 1024px) {
+  .pert-content {
+    flex-direction: column;
+  }
+  
+  .critical-path {
+    flex: 0 0 auto;
+    max-height: 200px;
+  }
+  
+  .pert-modal {
+    width: 98%;
+    height: 95%;
+  }
+}
+
+@media (max-width: 768px) {
+  .pert-header {
+    padding: 1rem;
+  }
+  
+  .pert-header h2 {
+    font-size: 1.4rem;
+  }
+  
+  .pert-content {
+    padding: 1rem;
+  }
+  
+  .pert-graph-container {
+    min-height: 400px;
+  }
+}
+
+/* Important: Ensure ReactFlow has dimensions */
+.reactflow {
+  width: 100%;
+  height: 100%;
+}
+
+/* Override ReactFlow default styles if needed */
+.react-flow__node {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__controls {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 111, 0, 0.2);
+}
+
+.react-flow__minimap {
+  background: white;
+  border: 1px solid rgba(255, 111, 0, 0.2);
 }
