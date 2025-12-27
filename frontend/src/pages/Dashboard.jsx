@@ -1,480 +1,462 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ReactFlow, { MiniMap, Controls, Background } from 'reactflow';
-import 'reactflow/dist/style.css';
-import axiosClient from '../axiosClient';
-import './Dashboard.css';
+import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import ReactFlow, { MiniMap, Controls, Background } from "reactflow";
+import "reactflow/dist/style.css";
+
+import axiosClient from "../axiosClient";
+import { buildPertNodes, buildPertEdgesWithArcs, findCriticalPath } from "../utils/pertUtils";
+import PertNode from "../components/PertNode";
+
+import "./Dashboard.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const reactFlowRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  /* ===================== STATES ===================== */
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('home');
+  /* ================= STATE ================= */
+  const [user, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [search, setSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState('');
 
   const [showPert, setShowPert] = useState(false);
-   const [pertGraph, setPertGraph] = useState({ nodes: [], edges: [] });
-  
+  const [pertGraph, setPertGraph] = useState({ nodes: [], edges: [], projectDuration: 0 });
   const [criticalPath, setCriticalPath] = useState([]);
+  const [projectStartDate, setProjectStartDate] = useState(new Date());
 
-  /* ===================== EFFECTS ===================== */
+  /* ================= EFFECT ================= */
   useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      navigate("/");
+      return;
+    }
+
+    setUser(JSON.parse(storedUser));
     fetchProjects();
   }, []);
 
-  /* ===================== API ===================== */
+  /* ================= API ================= */
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const res = await axiosClient.get('/projects');
+      const res = await axiosClient.get("/projects");
       setProjects(res.data);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error("Failed to fetch projects", err);
     } finally {
       setLoading(false);
     }
   };
 
- const loadPert = async (projectId) => {
-  try {
-    console.log('=== LOADING PERT ===');
-    console.log('Project ID:', projectId);
-    
-    // D'abord, essayez de fixer les données si nécessaire
+  const loadPert = async (projectId) => {
     try {
-      const fixRes = await axiosClient.post(`/projects/${projectId}/pert/fix`);
-      console.log('Fix response:', fixRes.data);
-    } catch (fixErr) {
-      console.log('No fix needed or fix failed:', fixErr.message);
-    }
+      const res = await axiosClient.get(`/projects/${projectId}/pert`);
 
-    // Maintenant chargez le PERT
-    const res = await axiosClient.get(`/projects/${projectId}/pert`);
-    console.log('PERT Response:', res.data);
-
-    if (res.data.error) {
-      alert(`PERT Error: ${res.data.error}`);
-      return;
-    }
-
-    if (!res.data?.nodes?.length) {
-      alert('No PERT data available');
-      return;
-    }
-
-    // Créer les nodes pour ReactFlow
-    const nodes = res.data.nodes.map((node, index) => {
-      const isCritical = res.data.critical_path?.includes(node.id.toString());
-      const row = Math.floor(index / 4); // 4 nodes par ligne
-      const col = index % 4;
-      
-      return {
-        id: node.id.toString(),
-        position: { x: col * 220, y: row * 180 },
-        data: {
-          label: (
-            <div style={{ 
-              textAlign: 'center', 
-              minWidth: '150px',
-              padding: '8px'
-            }}>
-              <strong style={{ 
-                color: isCritical ? '#d32f2f' : '#1976d2',
-                fontSize: '14px'
-              }}>
-                {node.full_label || node.label}
-              </strong>
-              <div style={{ fontSize: '11px', marginTop: '6px' }}>
-                ES: {node.es} | EF: {node.ef}
-              </div>
-              <div style={{ fontSize: '11px' }}>
-                LS: {node.ls} | LF: {node.lf}
-              </div>
-              <div style={{ 
-                fontSize: '10px', 
-                color: isCritical ? '#d32f2f' : '#666',
-                marginTop: '4px',
-                fontWeight: isCritical ? 'bold' : 'normal'
-              }}>
-                {isCritical ? 'CRITICAL' : `Slack: ${node.slack}`}
-              </div>
-            </div>
-          )
-        },
-        style: {
-          border: isCritical ? '3px solid #d32f2f' : '2px solid #1976d2',
-          borderRadius: '10px',
-          padding: '10px',
-          background: isCritical ? '#fff5f5' : '#f5faff',
-          width: '170px',
-          height: 'auto',
-          boxShadow: isCritical 
-            ? '0 4px 12px rgba(211, 47, 47, 0.2)' 
-            : '0 3px 10px rgba(25, 118, 210, 0.1)'
-        }
-      };
-    });
-
-    const edges = res.data.edges?.map((e, i) => ({
-      id: `e${i}`,
-      source: e.from.toString(),
-      target: e.to.toString(),
-      animated: e.critical || false,
-      style: { 
-        stroke: e.critical ? '#d32f2f' : '#1976d2', 
-        strokeWidth: e.critical ? 3 : 2,
-        opacity: e.critical ? 1 : 0.7
-      },
-      type: 'smoothstep'
-    })) || [];
-
-    console.log('Processed nodes:', nodes);
-    console.log('Processed edges:', edges);
-    console.log('Critical path:', res.data.critical_path);
-    console.log('Project duration:', res.data.project_duration);
-    
-    setPertGraph({ nodes, edges });
-    setCriticalPath(res.data.critical_path?.map(id => id.toString()) || []);
-    setShowPert(true);
-
-  } catch (e) {
-    console.error('=== PERT LOAD ERROR ===');
-    console.error('Error:', e);
-    console.error('Response:', e.response?.data);
-    
-    // Essayez la route debug pour voir ce qui ne va pas
-    try {
-      const debugRes = await axiosClient.get(`/projects/${projectId}/pert/debug`);
-      console.log('Debug data:', debugRes.data);
-      
-      if (debugRes.data.tasks && debugRes.data.dependencies) {
-        alert(`Cannot generate PERT:\n- Tasks: ${debugRes.data.tasks.length}\n- Dependencies: ${debugRes.data.dependencies.length}\nNeed at least 2 tasks and 1 dependency.`);
+      if (!res.data?.nodes?.length) {
+        alert("No PERT data available");
+        return;
       }
-    } catch (debugErr) {
-      console.error('Debug failed:', debugErr);
-    }
-    
-    alert('Failed to load PERT: ' + (e.response?.data?.error || e.message));
-  }
-};
 
-  /* ===================== ACTIONS ===================== */
-  const handleCreateProject = async (e) => {
-    e.preventDefault();
-    try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      const res = await axiosClient.post('/projects', {
-        user_id: user.id,
-        title,
-        description,
-        start_date: startDate || null,
+      // Extract data from response
+      const rawNodes = res.data.nodes || [];
+      let criticalPathData = res.data.critical_path || [];
+      const projectDuration = res.data.project_duration || 0;
+      const startDate = res.data.start_date ? new Date(res.data.start_date) : new Date();
+      
+      setProjectStartDate(startDate);
+
+      // If no critical path provided, calculate it
+      if (!criticalPathData.length) {
+        criticalPathData = findCriticalPath(rawNodes);
+      }
+
+      // Build nodes and edges
+      const { nodes, projectDuration: calculatedDuration } = buildPertNodes(
+        rawNodes, 
+        criticalPathData, 
+        startDate
+      );
+      const edges = buildPertEdgesWithArcs(rawNodes, criticalPathData);
+      
+      // Add node type for ReactFlow
+      const nodesWithType = nodes.map((n) => ({ ...n, type: "pertNode" }));
+
+      setPertGraph({ 
+        nodes: nodesWithType, 
+        edges, 
+        projectDuration: projectDuration || calculatedDuration 
       });
-      setProjects([res.data, ...projects]);
-      setShowCreateModal(false);
-      setTitle('');
-      setDescription('');
-      setStartDate('');
-    } catch {
-      alert('Error creating project');
+      setCriticalPath(criticalPathData);
+      setShowPert(true);
+    } catch (e) {
+      console.error("Failed to load PERT:", e);
+      alert("Failed to load PERT: " + (e.message || "Unknown error"));
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete project ?')) return;
-    await axiosClient.delete(`/projects/${id}`);
-    setProjects(projects.filter(p => p.id !== id));
-  };
-
+  /* ================= ACTIONS ================= */
   const handleLogout = () => {
     localStorage.clear();
-    navigate('/');
+    navigate("/");
   };
-const loadProjectTasks = async (projectId) => {
-  try {
-    const res = await axiosClient.get(`/projects/${projectId}/tasks`);
-    setTasks(res.data);
-    return res.data;
-  } catch (e) {
-    console.error('Error loading tasks:', e);
-    // Retourner un tableau vide en cas d'erreur
-    return [];
-  }
-};
 
-const loadProjectDependencies = async (projectId) => {
-  try {
-    const res = await axiosClient.get(`/projects/${projectId}/dependencies`);
-    setDependencies(res.data);
-    return res.data;
-  } catch (e) {
-    console.error('Error loading dependencies:', e);
-    // Retourner un tableau vide en cas d'erreur
-    return [];
-  }
-};
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (reactFlowRef.current?.requestFullscreen) {
+        reactFlowRef.current.requestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  };
 
-const createTask = async (projectId) => {
-  try {
-    const res = await axiosClient.post(`/projects/${projectId}/tasks/simple`, {
-      name: taskName,
-      optimistic_time: parseFloat(optimisticTime),
-      most_likely_time: parseFloat(mostLikelyTime),
-      pessimistic_time: parseFloat(pessimisticTime),
-    });
-    
-    setTasks([...tasks, res.data]);
-    setTaskName('');
-    setOptimisticTime('');
-    setMostLikelyTime('');
-    setPessimisticTime('');
-    
-    return res.data;
-  } catch (e) {
-    console.error('Error creating task:', e);
-    alert('Error creating task: ' + (e.response?.data?.error || e.message));
-  }
-};
-
-const createDependency = async (projectId) => {
-  try {
-    const res = await axiosClient.post(`/projects/${projectId}/dependencies`, {
-      predecessor_task_id: predecessorTaskId,
-      successor_task_id: successorTaskId,
-    });
-    
-    setDependencies([...dependencies, res.data]);
-    setPredecessorTaskId('');
-    setSuccessorTaskId('');
-    
-    return res.data;
-  } catch (e) {
-    console.error('Error creating dependency:', e);
-    alert('Error creating dependency: ' + (e.response?.data?.error || e.message));
-  }
-};
-  /* ===================== HELPERS ===================== */
-  const filteredProjects = projects.filter(p =>
-    p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProjects = projects.filter(
+    (p) =>
+      p.title?.toLowerCase().includes(search.toLowerCase()) ||
+      p.description?.toLowerCase().includes(search.toLowerCase())
   );
 
-  /* ===================== RENDER ===================== */
+  const avatarLetter = user?.name?.charAt(0)?.toUpperCase();
+
+  /* ================= PERT GUIDE DATA ================= */
+  const pertGuideItems = [
+    {
+      term: "ES (Early Start)",
+      definition: "The earliest possible time a task can start, based on all predecessor tasks.",
+      example: "If Task B depends on Task A (4 days), ES of B = Day 5"
+    },
+    {
+      term: "EF (Early Finish)",
+      definition: "The earliest possible time a task can finish (ES + Duration).",
+      example: "If Task B starts on Day 5 and takes 3 days, EF = Day 8"
+    },
+    {
+      term: "LS (Late Start)",
+      definition: "The latest possible time a task can start without delaying the project.",
+      example: "If project end is Day 20 and Task B takes 3 days, LS = Day 17"
+    },
+    {
+      term: "LF (Late Finish)",
+      definition: "The latest possible time a task can finish without delaying the project.",
+      example: "LF = LS + Duration"
+    },
+    {
+      term: "Slack/Float",
+      definition: "The amount of time a task can be delayed without affecting project completion.",
+      example: "Slack = LS - ES = LF - EF"
+    },
+    {
+      term: "Critical Path",
+      definition: "The sequence of tasks with ZERO slack - any delay delays the entire project.",
+      example: "Longest path through the project network"
+    }
+  ];
+
+  /* ================= RENDER ================= */
   return (
     <div className="dashboard-container">
-
       {/* ================= HEADER ================= */}
       <header className="header">
         <div className="header-content">
-          <div
-            className="menu-icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
+          <div className="menu-icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
             ☰
           </div>
-          <span className="site-name">ManaJect</span>
+          <div className="site-name">Manaject</div>
         </div>
       </header>
 
       {/* ================= SIDEBAR ================= */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-content">
-
           <div className="profile-section">
             <div className="profile-header">
-              <div className="profile-avatar">IM</div>
+              <div className="profile-avatar">{avatarLetter}</div>
               <div className="profile-info">
-                <h3>Admin</h3>
-                <p>Dashboard</p>
+                <h3>{user?.name}</h3>
+                <p>{user?.email}</p>
               </div>
             </div>
           </div>
 
-          <div className="sidebar-nav">
-            <button
-              className={`sidebar-item ${activeSection === 'home' ? 'active' : ''}`}
-              onClick={() => setActiveSection('home')}
-            >
-              <span className="item-icon">🏠</span>
-              Home
+          <nav className="sidebar-nav">
+            <button className="sidebar-item active">
+              <span className="item-icon">🏠</span> Dashboard
             </button>
-
-            <button
-              className={`sidebar-item ${activeSection === 'current' ? 'active' : ''}`}
-              onClick={() => setActiveSection('current')}
-            >
-              <span className="item-icon">🚀</span>
-              Current
+            <button className="sidebar-item">
+              <span className="item-icon">📊</span> Projects
             </button>
-          </div>
+          </nav>
 
           <div className="sidebar-footer">
             <button className="logout-btn" onClick={handleLogout}>
-              Logout
+              🚪 Logout
             </button>
           </div>
-
         </div>
       </aside>
 
       {/* ================= CONTENT ================= */}
       <main className="content">
-
-        {/* SEARCH + ACTIONS */}
-        <div className="search-actions-container">
-          <div className="search-container">
-            <input
-              className="search-input"
-              placeholder="Search project..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-            <span className="search-icon">🔍</span>
+        <section className="home-section">
+          <div className="welcome-message">
+            <h1>Welcome back...{user?.name}</h1>
+            <p>Manage your projects efficiently.</p>
           </div>
 
-          <button
-            className="create-project-btn"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <span className="btn-icon">＋</span>
-            New Project
-          </button>
-        </div>
+          <div className="search-actions-container">
+            <div className="search-container">
+              <input
+                className="search-input"
+                type="text"
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <span className="search-icon">🔍</span>
+            </div>
 
-        {/* PROJECTS */}
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <div className="project-grid">
-            {filteredProjects.map(project => (
-              <div key={project.id} className="project-card">
+            <button className="create-project-btn">
+              <span className="btn-icon">＋</span> New Project
+            </button>
+          </div>
 
-                <h3>{project.title}</h3>
-                <p>{project.description || 'No description'}</p>
+          <div className="projects-section">
+            <div className="section-header">
+              <h2 className="section-title">Projects</h2>
+              <div className="projects-count">{filteredProjects.length} Projects</div>
+            </div>
 
-                <div className="project-actions">
-                  <button onClick={() => navigate(`/projects/${project.id}`)}>
-                    View
-                  </button>
-
-                  <button
-                    className="pert-btn"
-                    onClick={() => {
-                      setShowPert(true);
-                      loadPert(project.id);
-                    }}
-                  >
-                    PERT
-                  </button>
-
-                  <button onClick={() => handleDelete(project.id)}>
-                    Delete
-                  </button>
-                </div>
-
+            {loading ? (
+              <p className="loading-text">Loading projects...</p>
+            ) : filteredProjects.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📂</div>
+                <h3>No projects yet</h3>
+                <p>Create your first project to get started</p>
               </div>
-            ))}
+            ) : (
+              <div className="project-grid">
+                {filteredProjects.map((project) => (
+                  <div className="project-card" key={project.id}>
+                    <h3>{project.title}</h3>
+                    <p>{project.description || "No description"}</p>
+
+                    <div className="project-actions">
+                      <button
+                        className="view-btn"
+                        onClick={() => navigate(`/projects/${project.id}`)}
+                      >
+                        View
+                      </button>
+
+                      <button
+                        className="pert-btn"
+                        onClick={() => loadPert(project.id)}
+                      >
+                        PERT
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </section>
       </main>
 
-      {/* ================= CREATE MODAL ================= */}
-      {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Create Project</h3>
-            <form onSubmit={handleCreateProject}>
-              <input
-                placeholder="Title"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                required
-              />
-              <textarea
-                placeholder="Description"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-              />
-              <input
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-              />
-              <button type="submit">Create</button>
-            </form>
+      {/* ================= PERT MODAL ================= */}
+      {showPert && (
+        <div className="pert-overlay" onClick={() => setShowPert(false)}>
+          <div className={`pert-modal ${isFullscreen ? 'fullscreen' : ''}`} onClick={(e) => e.stopPropagation()}>
+            <div className="pert-header">
+              <div className="pert-header-left">
+                <h2>PERT Planning</h2>
+                <div className="pert-subtitle">
+                  Project Start: {projectStartDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </div>
+              </div>
+              <div className="pert-header-right">
+                <button 
+                  className="fullscreen-btn"
+                  onClick={toggleFullscreen}
+                  title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                >
+                  {isFullscreen ? "⤓" : "⤢"}
+                </button>
+                <button className="close-btn" onClick={() => setShowPert(false)}>
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="pert-content">
+              {/* Left Sidebar with Guide and Critical Path */}
+              <div className="pert-sidebar">
+                {/* PERT Terminology Guide */}
+                <div className="pert-guide-card">
+                  <h3>📊 PERT Terminology Guide</h3>
+                  <div className="pert-terms-list">
+                    {pertGuideItems.map((item, index) => (
+                      <div key={index} className="pert-term-item">
+                        <div className="pert-term-header">
+                          <span className="pert-term-name">{item.term}</span>
+                        </div>
+                        <div className="pert-term-definition">{item.definition}</div>
+                        <div className="pert-term-example">
+                          <strong>Example:</strong> {item.example}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Edge Example */}
+                  <div className="edge-example">
+                    <h4>🔴 Arc Dependency Example:</h4>
+                    <div className="example-visual">
+                      <div className="example-node">Task A</div>
+                      <div className="example-arc-container">
+                        <div className="example-arc-line critical"></div>
+                        <div className="example-arrow"></div>
+                      </div>
+                      <div className="example-node">Task B</div>
+                    </div>
+                    <p className="example-description">
+                      <strong>Task B depends on Task A</strong><br/>
+                      Arcs show task dependencies. Red arcs indicate critical path.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Critical Path Info */}
+                <div className="critical-path-card">
+                  <h3>🎯 Critical Path Analysis</h3>
+                  <div className="path-summary">
+                    <div className="summary-item">
+                      <span className="summary-label">Project Duration:</span>
+                      <span className="summary-value">{pertGraph.projectDuration} days</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Completion Date:</span>
+                      <span className="summary-value">
+                        {(() => {
+                          const endDate = new Date(projectStartDate);
+                          endDate.setDate(endDate.getDate() + pertGraph.projectDuration);
+                          return endDate.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                          });
+                        })()}
+                      </span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Critical Tasks:</span>
+                      <span className="summary-value critical-count">{criticalPath.length}</span>
+                    </div>
+                  </div>
+                  
+                  {criticalPath.length > 0 && (
+                    <div className="critical-tasks-list">
+                      <h4>Critical Tasks (Zero Slack):</h4>
+                      <div className="tasks-scroll">
+                        {criticalPath.map((taskId, index) => {
+                          const node = pertGraph.nodes.find((n) => n.id === taskId);
+                          const label = node?.data?.label?.label || node?.data?.label?.full_label || `Task ${taskId}`;
+                          const duration = node?.data?.label?.duration || "N/A";
+                          const es = node?.data?.label?.es || 0;
+                          const ls = node?.data?.label?.ls || 0;
+                          const ef = node?.data?.label?.ef || 0;
+                          const lf = node?.data?.label?.lf || 0;
+                          const slack = node?.data?.label?.slack || 0;
+                          
+                          return (
+                            <div key={taskId} className="critical-task-item">
+                              <div className="task-index">{index + 1}</div>
+                              <div className="task-details">
+                                <div className="task-name">{label}</div>
+                                <div className="task-metrics">
+                                  <span className="metric">ES: {es}</span>
+                                  <span className="metric">EF: {ef}</span>
+                                  <span className="metric">LS: {ls}</span>
+                                  <span className="metric">LF: {lf}</span>
+                                  <span className="metric">Slack: {slack}</span>
+                                  <span className="metric">Dur: {duration}d</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* PERT Graph */}
+              <div className="pert-graph-container" ref={reactFlowRef}>
+                {pertGraph.nodes.length > 0 ? (
+                  <div className="reactflow-wrapper">
+                    <ReactFlow
+                      nodes={pertGraph.nodes}
+                      edges={pertGraph.edges}
+                      nodeTypes={{ pertNode: PertNode }}
+                      fitView
+                      fitViewOptions={{ padding: 0.3, duration: 800 }}
+                      defaultEdgeOptions={{
+                        type: 'smoothstep',
+                        animated: false,
+                        style: { strokeWidth: 2 }
+                      }}
+                    >
+                      <Background variant="dots" gap={20} size={1} />
+                      <MiniMap 
+                        nodeStrokeColor={(n) => (n.data?.isCritical ? '#ff4444' : '#1976d2')}
+                        nodeColor={(n) => (n.data?.isCritical ? '#fff0f0' : '#e3f2fd')}
+                      />
+                      <Controls />
+                    </ReactFlow>
+                    
+                    {/* Arc Legend */}
+                    <div className="arc-legend">
+                      <div className="arc-legend-title">Dependency Arcs:</div>
+                      <div className="arc-legend-items">
+                        <div className="arc-legend-item">
+                          <div className="arc-sample critical"></div>
+                          <span>Critical Path Arc</span>
+                        </div>
+                        <div className="arc-legend-item">
+                          <div className="arc-sample normal"></div>
+                          <span>Normal Dependency Arc</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="empty-pert-graph">
+                    <div className="empty-icon">📊</div>
+                    <h3>No PERT Data Available</h3>
+                    <p>This project doesn't have task dependencies defined.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      {/* ================= PERT MODAL ================= */}
-     {/* ================= PERT MODAL ================= */}
-{/* ================= PERT MODAL ================= */}
-{/* ================= PERT MODAL ================= */}
-{showPert && (
-  <div className="pert-overlay" onClick={() => setShowPert(false)}>
-    <div className="pert-modal" onClick={e => e.stopPropagation()}>
-      <div className="pert-header">
-        <h2>PERT Planning</h2>
-        <button className="close-btn" onClick={() => setShowPert(false)}>×</button>
-      </div>
-
-      <div className="pert-content">
-        {/* Chemin critique */}
-        <div className="critical-path">
-          <h3>Critical Path</h3>
-          <div className="path-list">
-            {criticalPath.length > 0 ? (
-              criticalPath.map((taskId, i) => {
-                const task = pertGraph.nodes.find(n => n.id === taskId);
-                const taskLabel = task?.data?.label?.props?.children?.[0]?.props?.children || 
-                                 `Task ${taskId}`;
-                return (
-                  <div key={taskId} className="path-item">
-                    <span className="path-index">{i + 1}</span>
-                    <span>{taskLabel}</span>
-                  </div>
-                );
-              })
-            ) : (
-              <p>No critical path found</p>
-            )}
-          </div>
-        </div>
-
-        {/* Graphe PERT */}
-        <div className="pert-graph-container">
-          {pertGraph.nodes.length > 0 ? (
-            <ReactFlow
-              nodes={pertGraph.nodes}
-              edges={pertGraph.edges}
-              fitView
-              fitViewOptions={{ padding: 0.5 }}
-            >
-              <Background />
-              <MiniMap />
-              <Controls />
-            </ReactFlow>
-          ) : (
-            <div className="empty-pert-graph">
-              <p>No PERT data available</p>
-              <p>Please add tasks and dependencies to generate the PERT chart</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
     </div>
   );
 };
 
 export default Dashboard;
-

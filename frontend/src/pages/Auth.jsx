@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axiosClient from "../axiosClient";
 import "./Auth.css";
 
@@ -7,138 +7,127 @@ function Auth() {
   const [activeTab, setActiveTab] = useState("login");
   const [flip, setFlip] = useState(false);
 
-  // LOGIN state
+  /* ================= LOGIN ================= */
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
-  // REGISTER state
+  /* ================= REGISTER ================= */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  // OTP state
-const [otpEmail, setOtpEmail] = useState("");
-const [otpCode, setOtpCode] = useState("");
-const [otpStep, setOtpStep] = useState(false); // false = pas encore envoyé
-const [otpMessage, setOtpMessage] = useState("");
-
   const [registerError, setRegisterError] = useState("");
-  
 
-  // 🔐 Connexion backend
+  /* ================= OTP ================= */
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpDigits, setOtpDigits] = useState(Array(6).fill(""));
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpMessage, setOtpMessage] = useState("");
+  const [timer, setTimer] = useState(60);
+
+  /* ================= OTP TIMER ================= */
+  useEffect(() => {
+    if (!otpStep || timer === 0) return;
+    const interval = setInterval(() => setTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [otpStep, timer]);
+
+  /* ================= LOGIN ================= */
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError("");
 
     try {
-      const response = await axiosClient.post("/login", {
+      const res = await axiosClient.post("/login", {
         email: loginEmail,
         password: loginPassword,
       });
 
-      // ✅ Sauvegarder token et user
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-
-      console.log("Login réussi :", response.data);
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
       window.location.href = "/dashboard";
-    } catch (error) {
-      console.error("Erreur de connexion :", error);
-      setLoginError(
-        error.response?.data?.message || "Email ou mot de passe incorrect"
+    } catch (err) {
+      setLoginError(err.response?.data?.message || "Invalid email or password");
+    }
+  };
+
+  /* ================= REGISTER ================= */
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setRegisterError("");
+    setOtpMessage("");
+
+    try {
+      await axiosClient.post("/register", {
+        name,
+        email,
+        password,
+        password_confirmation: passwordConfirmation,
+      });
+
+      await axiosClient.post("/send-otp", { email });
+
+      setOtpEmail(email);
+      setOtpStep(true);
+      setTimer(60);
+      setOtpMessage("OTP code sent to your email.");
+    } catch (err) {
+      setRegisterError(
+        err.response?.data?.message ||
+        err.response?.data?.errors?.email?.[0] ||
+        "Registration failed"
       );
     }
   };
 
-  // 🧾 Inscription backend
-  // 🧾 Inscription backend
-const handleRegister = async (e) => {
-  e.preventDefault();
-  setRegisterError("");
-  setOtpMessage("");
+  /* ================= OTP INPUT ================= */
+  const handleOtpChange = (value, index) => {
+    if (!/^\d?$/.test(value)) return;
 
-  try {
-    const response = await axiosClient.post("/register", {
-      name,
-      email,
-      password,
-      password_confirmation: passwordConfirmation,
-    });
+    const newOtp = [...otpDigits];
+    newOtp[index] = value;
+    setOtpDigits(newOtp);
 
-    setOtpEmail(email);       // email pour envoyer le OTP
-    setOtpStep(true);         // déclenche la modale OTP
+    if (value && index < 5) {
+      document.getElementById(`otp-${index + 1}`).focus();
+    }
+  };
 
-    // 🔑 Appel de la fonction pour envoyer l'OTP
-    const otpResponse = await axiosClient.post("/send-otp", { email });
-    setOtpMessage(otpResponse.data.message);
+  /* ================= VERIFY OTP ================= */
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    const otp = otpDigits.join("");
 
-  } catch (error) {
-    console.error("Erreur d'inscription :", error);
-    setRegisterError(
-      error.response?.data?.message ||
-      error.response?.data?.errors?.email?.[0] ||
-      "Erreur lors de la création du compte"
-    );
-  }
-};
+    try {
+      await axiosClient.post("/verify-otp", { email: otpEmail, otp });
 
+      const loginRes = await axiosClient.post("/login", {
+        email: otpEmail,
+        password,
+      });
 
+      localStorage.setItem("token", loginRes.data.token);
+      localStorage.setItem("user", JSON.stringify(loginRes.data.user));
+      window.location.href = "/dashboard";
+    } catch (err) {
+      setOtpMessage(err.response?.data?.error || "Invalid OTP code");
+    }
+  };
 
-// 🔑 OTP - envoyer
-const handleSendOTP = async (e) => {
-  e.preventDefault();
-  setOtpMessage("");
+  /* ================= RESEND OTP ================= */
+  const handleSendOTP = async () => {
+    try {
+      await axiosClient.post("/send-otp", { email: otpEmail });
+      setOtpDigits(Array(6).fill(""));
+      setTimer(60);
+      setOtpMessage("New OTP sent.");
+    } catch {
+      setOtpMessage("Failed to resend OTP.");
+    }
+  };
 
-  try {
-    const response = await axiosClient.post("/send-otp", {
-      email: otpEmail
-    });
-    setOtpMessage(response.data.message);
-    setOtpStep(true);
-  } catch (error) {
-    console.error("Erreur OTP :", error);
-    setOtpMessage(error.response?.data?.error || "Erreur lors de l'envoi du OTP");
-  }
-};
-
-// 🔑 OTP - vérifier
-const handleVerifyOTP = async (e) => {
-  e.preventDefault();
-  setOtpMessage("");
-
-  try {
-    // 1️⃣ Vérifier l’OTP
-    await axiosClient.post("/verify-otp", {
-      email: otpEmail,
-      otp: otpCode.trim()
-    });
-
-    // 2️⃣ LOGIN AUTOMATIQUE après OTP
-    const loginResponse = await axiosClient.post("/login", {
-      email: otpEmail,
-      password: password // mot de passe utilisé lors de l'inscription
-    });
-
-    // 3️⃣ Sauvegarde token + user
-    localStorage.setItem("token", loginResponse.data.token);
-    localStorage.setItem("user", JSON.stringify(loginResponse.data.user));
-
-    // 4️⃣ Redirection
-    window.location.href = "/dashboard";
-
-  } catch (error) {
-    console.error("Erreur vérification OTP :", error);
-    setOtpMessage(error.response?.data?.error || "OTP incorrect");
-  }
-};
-
-
-
-
-
-
-  // 🎭 Changer d’onglet
+  /* ================= TAB SWITCH ================= */
   const switchTab = (tab) => {
     setActiveTab(tab);
     setFlip(tab === "register");
@@ -150,22 +139,19 @@ const handleVerifyOTP = async (e) => {
     <div className="get-started-container">
       <div className={`background ${showAuth ? "blurred" : ""}`} />
 
-      {/* 🔘 Bouton Get Started */}
       {!showAuth && (
         <div className="get-started-button-container">
-          <button
-            onClick={() => setShowAuth(true)}
-            className="tab-button"
-          >
+          <button className="tab-button" onClick={() => setShowAuth(true)}>
             Get Started
           </button>
         </div>
       )}
 
-      {/* 🪟 Modale d’authentification */}
       {showAuth && (
         <div className="auth-modal-overlay">
           <div className="auth-container">
+
+            {/* Tabs */}
             <div className="tab-buttons">
               <button
                 onClick={() => switchTab("login")}
@@ -181,127 +167,73 @@ const handleVerifyOTP = async (e) => {
               </button>
             </div>
 
+            {/* Flip Card */}
             <div className="flip-card-wrapper">
               <div className={`flip-card ${flip ? "flipped" : ""}`}>
-                {/* 🔐 LOGIN FORM */}
+
+                {/* LOGIN */}
                 <form onSubmit={handleLogin} className="form form-front">
-                  <h2>Connexion</h2>
+                  <h2>Sign In</h2>
                   {loginError && <p className="form-error">{loginError}</p>}
-
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                    className="form-input"
-                  />
-
-                  <input
-                    type="password"
-                    placeholder="Mot de passe"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                    className="form-input"
-                  />
-
-                  <button type="submit" className="form-button">
-                    Se connecter
-                  </button>
+                  <input className="form-input" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
+                  <input className="form-input" type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
+                  <button className="form-button">Sign In</button>
                 </form>
 
-                {/* 🧾 REGISTER FORM */}
+                {/* REGISTER */}
                 <form onSubmit={handleRegister} className="form form-back">
-                  <h2>Créer un compte</h2>
-                  {registerError && (
-                    <p className="form-error">{registerError}</p>
-                  )}
-
-                  <input
-                    type="text"
-                    placeholder="Nom d'utilisateur"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="form-input"
-                  />
-
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="form-input"
-                  />
-
-                  <input
-                    type="password"
-                    placeholder="Mot de passe"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength="6"
-                    className="form-input"
-                  />
-
-                  <input
-                    type="password"
-                    placeholder="Confirmez le mot de passe"
-                    value={passwordConfirmation}
-                    onChange={(e) => setPasswordConfirmation(e.target.value)}
-                    required
-                    minLength="6"
-                    className="form-input"
-                  />
-
-                  <button type="submit" className="form-button">
-                    Créer le compte
-                  </button>
+                  <h2>Create Account</h2>
+                  {registerError && <p className="form-error">{registerError}</p>}
+                  <input className="form-input" placeholder="Username" value={name} onChange={e => setName(e.target.value)} />
+                  <input className="form-input" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+                  <input className="form-input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+                  <input className="form-input" type="password" placeholder="Confirm Password" value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} />
+                  <button className="form-button">Create Account</button>
                 </form>
               </div>
             </div>
 
-            {/* 🔙 Bouton fermer (Sign In / Sign Up) */}
-<button
-  className="close-modal"
-  onClick={() => setShowAuth(false)}
->
-  ✖
-</button>
+            <button className="close-modal" onClick={() => setShowAuth(false)}>✖</button>
+          </div>
+        </div>
+      )}
 
-{/* 📝 OTP Modal */}
-{otpStep && (
-  <div className="otp-modal-overlay">
-    <div className="otp-container">
-      <h2>Vérification OTP</h2>
+      {/* ================= OTP MODAL ================= */}
+      {otpStep && (
+        <div className="otp-modal-overlay">
+          <div className="otp-container otp-animate">
+            <h2>OTP Verification</h2>
 
-      <form onSubmit={handleVerifyOTP}>
-        <input
-          type="text"
-          placeholder="Entrez le code OTP"
-          value={otpCode}
-          onChange={(e) => setOtpCode(e.target.value)}
-          required
-          className="form-input"
-        />
-        <button type="submit" className="form-button">Vérifier OTP</button>
-      </form>
+            <form onSubmit={handleVerifyOTP}>
+              <div className="otp-inputs">
+                {otpDigits.map((digit, i) => (
+                  <input
+                    key={i}
+                    id={`otp-${i}`}
+                    className="otp-box"
+                    maxLength="1"
+                    value={digit}
+                    onChange={(e) => handleOtpChange(e.target.value, i)}
+                  />
+                ))}
+              </div>
 
-      {otpMessage && <p className="form-error">{otpMessage}</p>}
+              <button className="form-button">Verify OTP</button>
+            </form>
 
-      <button
-        className="close-modal"
-        onClick={() => { setOtpStep(false); setOtpMessage(""); }}
-      >
-        ✖
-      </button>
-    </div>
-  </div>
-)}
+            {otpMessage && <p className="form-success">{otpMessage}</p>}
 
+            {timer > 0 ? (
+              <p className="otp-timer">
+                Resend available in <span>{timer}</span>s
+              </p>
+            ) : (
+              <button className="resend-otp-btn" onClick={handleSendOTP}>
+                Resend OTP
+              </button>
+            )}
 
+            <button className="close-modal" onClick={() => setOtpStep(false)}>✖</button>
           </div>
         </div>
       )}
