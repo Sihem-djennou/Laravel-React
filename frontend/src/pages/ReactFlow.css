@@ -1,0 +1,189 @@
+/* ================= REACTFLOW NODES - STYLES PERT ================= */
+.react-flow__node {
+  border-radius: 8px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.react-flow__node-pertNode {
+  border: 2px solid #1976d2 !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  background: white !important;
+  min-width: 200px !important;
+  max-width: 250px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+}
+
+.react-flow__node-pertNode.critical {
+  border-color: #ff4444 !important;
+  border-width: 3px !important;
+  background: #fff0f0 !important;
+  animation: criticalGlow 2s infinite !important;
+}
+
+.react-flow__node-pertNode.start-node {
+  background: linear-gradient(135deg, #e8f5e9, #ffffff) !important;
+  border-color: #4caf50 !important;
+}
+
+.react-flow__node-pertNode.end-node {
+  background: linear-gradient(135deg, #f3e5f5, #ffffff) !important;
+  border-color: #9c27b0 !important;
+}
+
+@keyframes criticalGlow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2) !important;
+  }
+  50% {
+    box-shadow: 0 6px 16px rgba(255, 68, 68, 0.4) !important;
+  }
+}
+
+/* ================= EDGES / ARCS ================= */
+.react-flow__edge {
+  pointer-events: visibleStroke !important;
+}
+
+.react-flow__edge-path {
+  fill: none !important;
+  transition: all 0.3s ease !important;
+  marker-end: url(#arrowhead-normal) !important;
+}
+
+/* Arcs PERT */
+.react-flow__edge.pert-edge.normal .react-flow__edge-path {
+  stroke: #1976d2 !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: 5,5 !important;
+}
+
+.react-flow__edge.pert-edge.critical .react-flow__edge-path {
+  stroke: #ff4444 !important;
+  stroke-width: 3px !important;
+  stroke-dasharray: 5,5 !important;
+  animation: dashAnimation 1s linear infinite !important;
+  marker-end: url(#arrowhead-critical) !important;
+}
+
+@keyframes dashAnimation {
+  from { stroke-dashoffset: 10; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Hover */
+.react-flow__edge.pert-edge:hover .react-flow__edge-path {
+  stroke-width: 4px !important;
+  opacity: 0.9 !important;
+}
+
+/* ================= NODE SELECTION ================= */
+.react-flow__node.selected {
+  box-shadow: 0 0 0 3px rgba(255, 111, 0, 0.4) !important;
+  z-index: 100 !important;
+}
+
+.react-flow__node.critical.selected {
+  box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.6) !important;
+}
+
+/* ================= GRAPH CONTAINER ================= */
+.reactflow-wrapper,
+.react-flow__renderer {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+}
+
+.react-flow__viewport {
+  transform-origin: 0 0 !important;
+}
+
+/* ================= LEGEND ================= */
+.arc-legend {
+  position: absolute !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 1000 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+}
+
+.arc-legend-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 8px !important;
+}
+
+.arc-legend-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.arc-sample {
+  width: 40px !important;
+  height: 20px !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.arc-sample::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  transform: translateY(-50%) !important;
+}
+
+.arc-sample.critical::before {
+  background: #ff4444 !important;
+  animation: dashAnimation 1s linear infinite !important;
+}
+
+.arc-sample.normal::before {
+  background-image: repeating-linear-gradient(
+    to right,
+    #1976d2,
+    #1976d2 5px,
+    transparent 5px,
+    transparent 10px
+  ) !important;
+}
+
+.arc-sample::after {
+  content: '' !important;
+  position: absolute !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-top: 4px solid transparent !important;
+  border-bottom: 4px solid transparent !important;
+  border-left: 6px solid currentColor !important;
+}
+
+.arc-sample.critical::after {
+  color: #ff4444 !important;
+}
+
+.arc-sample.normal::after {
+  color: #1976d2 !important;
+}
+
+.arc-legend-item span {
+  font-size: 12px !important;
+  color: #333 !important;
+  font-weight: 500 !important;
+}

@@ -153,13 +153,13 @@ function Auth() {
 
             {/* Tabs */}
             <div className="tab-buttons">
-              <button
+              <button data-testid="sign-in-button" 
                 onClick={() => switchTab("login")}
                 className={`tab-button ${activeTab === "login" ? "active" : ""}`}
               >
                 Sign In
               </button>
-              <button
+              <button data-testid="sign-up-button" 
                 onClick={() => switchTab("register")}
                 className={`tab-button ${activeTab === "register" ? "active" : ""}`}
               >
@@ -193,7 +193,7 @@ function Auth() {
               </div>
             </div>
 
-            <button className="close-modal" onClick={() => setShowAuth(false)}>✖</button>
+            <button  data-testid="close-modal" className="close-modal" onClick={() => setShowAuth(false)}>✖</button>
           </div>
         </div>
       )}

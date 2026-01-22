@@ -198,16 +198,24 @@ class PertController extends Controller
         Log::info("Critical tasks: " . count($criticalTasks));
         
         return response()->json([
-            'nodes' => $nodes,
-            'edges' => $edges,
-            'critical_path' => array_map('strval', $criticalTasks),
-            'project_duration' => round($projectDuration, 1),
-            'summary' => [
-                'total_tasks' => count($tasks),
-                'total_dependencies' => count($dependencies),
-                'critical_tasks' => count($criticalTasks),
-            ]
-        ]);
+    'nodes' => $nodes,
+    'edges' => $edges,
+    'dependencies' => $dependencies->map(function($dep) { // <-- AJOUTEZ CE CHAMP
+        return [
+            'predecessor_task_id' => (string) $dep->predecessor_task_id,
+            'successor_task_id' => (string) $dep->successor_task_id,
+            'id' => $dep->id,
+            'project_id' => $dep->project_id,
+        ];
+    })->toArray(),
+    'critical_path' => array_map('strval', $criticalTasks),
+    'project_duration' => round($projectDuration, 1),
+    'summary' => [
+        'total_tasks' => count($tasks),
+        'total_dependencies' => count($dependencies),
+        'critical_tasks' => count($criticalTasks),
+    ]
+]);
     }
 
     private function cleanNumber($value)

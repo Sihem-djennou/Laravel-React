@@ -2,41 +2,44 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactFlow, { MiniMap, Controls, Background } from "reactflow";
 import "reactflow/dist/style.css";
-
 import axiosClient from "../axiosClient";
-import { buildPertNodes, buildPertEdgesWithArcs, findCriticalPath } from "../utils/pertUtils";
+import {
+  buildPertNodes,
+  buildPertEdgesWithArcs,
+  findCriticalPath,
+} from "../utils/pertUtils";
 import PertNode from "../components/PertNode";
-
 import "./Dashboard.css";
-
+import "./ReactFlow.css";
+// En haut du fichier, après les imports
+const nodeTypes = {
+  pertNode: PertNode,
+};
 const Dashboard = () => {
   const navigate = useNavigate();
   const reactFlowRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
   /* ================= STATE ================= */
   const [user, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const [showPert, setShowPert] = useState(false);
-  const [pertGraph, setPertGraph] = useState({ nodes: [], edges: [], projectDuration: 0 });
+  const [pertGraph, setPertGraph] = useState({nodes: [], edges: [],projectDuration: 0, });
   const [criticalPath, setCriticalPath] = useState([]);
   const [projectStartDate, setProjectStartDate] = useState(new Date());
-
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
   /* ================= EFFECT ================= */
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      navigate("/");
-      return;
-    }
-
+    if (!storedUser) { navigate("/");
+       return; }
     setUser(JSON.parse(storedUser));
-    fetchProjects();
-  }, []);
+    fetchProjects(); }, []);
 
   /* ================= API ================= */
   const fetchProjects = async () => {
@@ -51,52 +54,83 @@ const Dashboard = () => {
     }
   };
 
-  const loadPert = async (projectId) => {
-    try {
-      const res = await axiosClient.get(`/projects/${projectId}/pert`);
+const loadPert = async (projectId) => {
+  try {
+    const res = await axiosClient.get(`/projects/${projectId}/pert`);
+    console.log("📥 DONNÉES COMPLÈTES:", res.data);
 
-      if (!res.data?.nodes?.length) {
-        alert("No PERT data available");
-        return;
-      }
-
-      // Extract data from response
-      const rawNodes = res.data.nodes || [];
-      let criticalPathData = res.data.critical_path || [];
-      const projectDuration = res.data.project_duration || 0;
-      const startDate = res.data.start_date ? new Date(res.data.start_date) : new Date();
-      
-      setProjectStartDate(startDate);
-
-      // If no critical path provided, calculate it
-      if (!criticalPathData.length) {
-        criticalPathData = findCriticalPath(rawNodes);
-      }
-
-      // Build nodes and edges
-      const { nodes, projectDuration: calculatedDuration } = buildPertNodes(
-        rawNodes, 
-        criticalPathData, 
-        startDate
-      );
-      const edges = buildPertEdgesWithArcs(rawNodes, criticalPathData);
-      
-      // Add node type for ReactFlow
-      const nodesWithType = nodes.map((n) => ({ ...n, type: "pertNode" }));
-
-      setPertGraph({ 
-        nodes: nodesWithType, 
-        edges, 
-        projectDuration: projectDuration || calculatedDuration 
-      });
-      setCriticalPath(criticalPathData);
-      setShowPert(true);
-    } catch (e) {
-      console.error("Failed to load PERT:", e);
-      alert("Failed to load PERT: " + (e.message || "Unknown error"));
+    if (!res.data?.nodes?.length) {
+      alert("No PERT data available");
+      return;
     }
-  };
 
+    const rawNodes = res.data.nodes || [];
+    const dependencies = res.data.dependencies || [];
+    let criticalPathData = res.data.critical_path || [];
+    const startDate = res.data.start_date
+      ? new Date(res.data.start_date)
+      : new Date();
+
+    setProjectStartDate(startDate);
+
+    console.log("📊 Données reçues:");
+    console.log("- Nodes:", rawNodes);
+    console.log("- Dépendances:", dependencies);
+    
+    // Si pas de chemin critique, calculez-le
+    if (!criticalPathData.length) {
+      const nodesWithPredecessors = rawNodes.map(node => {
+        const nodeId = node.id.toString();
+        const predecessors = dependencies
+          .filter(dep => dep.successor_task_id?.toString() === nodeId)
+          .map(dep => dep.predecessor_task_id?.toString());
+        
+        return {
+          ...node,
+          id: nodeId,
+          predecessors: predecessors
+        };
+      });
+      
+      console.log("📋 Nœuds avec prédécesseurs:", nodesWithPredecessors);
+      criticalPathData = findCriticalPath(nodesWithPredecessors);
+    }
+
+    console.log("🎯 Chemin critique:", criticalPathData);
+
+    // Construire les nœuds
+    const { nodes, projectDuration: calculatedDuration } = buildPertNodes(
+      rawNodes,
+      dependencies,
+      criticalPathData,
+      startDate
+    );
+
+    // Construire les edges avec arcs
+    const pertEdges = buildPertEdgesWithArcs(
+      rawNodes,
+      criticalPathData,
+      dependencies
+    );
+
+    // DEBUG des edges
+    console.log("🔗 Edges créés:", pertEdges.length);
+    pertEdges.forEach(edge => {
+      console.log(`  ${edge.source} -> ${edge.target} (${edge.className})`);
+    });
+
+    setPertGraph({
+      nodes: nodes, // Pas besoin de mapper type, déjà défini dans buildPertNodes
+      edges: pertEdges,
+      projectDuration: calculatedDuration || 0,
+    });
+    setCriticalPath(criticalPathData);
+    setShowPert(true);
+  } catch (e) {
+    console.error("Failed to load PERT:", e);
+    alert("Failed to load PERT: " + (e.message || "Unknown error"));
+  }
+};
   /* ================= ACTIONS ================= */
   const handleLogout = () => {
     localStorage.clear();
@@ -116,6 +150,30 @@ const Dashboard = () => {
       setIsFullscreen(false);
     }
   };
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await axiosClient.post("/projects", {
+        user_id: user.id,
+        title,
+        description,
+        start_date: startDate || null,
+      });
+
+      // Ajouter le projet sans recharger
+      setProjects([res.data, ...projects]);
+
+      // Reset + fermer modal
+      setShowCreateModal(false);
+      setTitle("");
+      setDescription("");
+      setStartDate("");
+    } catch (err) {
+      console.error("Create project failed", err);
+      alert("Error creating project");
+    }
+  };
 
   const filteredProjects = projects.filter(
     (p) =>
@@ -129,34 +187,40 @@ const Dashboard = () => {
   const pertGuideItems = [
     {
       term: "ES (Early Start)",
-      definition: "The earliest possible time a task can start, based on all predecessor tasks.",
-      example: "If Task B depends on Task A (4 days), ES of B = Day 5"
+      definition:
+        "The earliest possible time a task can start, based on all predecessor tasks.",
+      example: "If Task B depends on Task A (4 days), ES of B = Day 5",
     },
     {
       term: "EF (Early Finish)",
-      definition: "The earliest possible time a task can finish (ES + Duration).",
-      example: "If Task B starts on Day 5 and takes 3 days, EF = Day 8"
+      definition:
+        "The earliest possible time a task can finish (ES + Duration).",
+      example: "If Task B starts on Day 5 and takes 3 days, EF = Day 8",
     },
     {
       term: "LS (Late Start)",
-      definition: "The latest possible time a task can start without delaying the project.",
-      example: "If project end is Day 20 and Task B takes 3 days, LS = Day 17"
+      definition:
+        "The latest possible time a task can start without delaying the project.",
+      example: "If project end is Day 20 and Task B takes 3 days, LS = Day 17",
     },
     {
       term: "LF (Late Finish)",
-      definition: "The latest possible time a task can finish without delaying the project.",
-      example: "LF = LS + Duration"
+      definition:
+        "The latest possible time a task can finish without delaying the project.",
+      example: "LF = LS + Duration",
     },
     {
       term: "Slack/Float",
-      definition: "The amount of time a task can be delayed without affecting project completion.",
-      example: "Slack = LS - ES = LF - EF"
+      definition:
+        "The amount of time a task can be delayed without affecting project completion.",
+      example: "Slack = LS - ES = LF - EF",
     },
     {
       term: "Critical Path",
-      definition: "The sequence of tasks with ZERO slack - any delay delays the entire project.",
-      example: "Longest path through the project network"
-    }
+      definition:
+        "The sequence of tasks with ZERO slack - any delay delays the entire project.",
+      example: "Longest path through the project network",
+    },
   ];
 
   /* ================= RENDER ================= */
@@ -165,7 +229,10 @@ const Dashboard = () => {
       {/* ================= HEADER ================= */}
       <header className="header">
         <div className="header-content">
-          <div className="menu-icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <div
+            className="menu-icon"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
             ☰
           </div>
           <div className="site-name">Manaject</div>
@@ -222,7 +289,10 @@ const Dashboard = () => {
               <span className="search-icon">🔍</span>
             </div>
 
-            <button className="create-project-btn">
+            <button
+              className="create-project-btn"
+              onClick={() => setShowCreateModal(true)}
+            >
               <span className="btn-icon">＋</span> New Project
             </button>
           </div>
@@ -230,7 +300,9 @@ const Dashboard = () => {
           <div className="projects-section">
             <div className="section-header">
               <h2 className="section-title">Projects</h2>
-              <div className="projects-count">{filteredProjects.length} Projects</div>
+              <div className="projects-count">
+                {filteredProjects.length} Projects
+              </div>
             </div>
 
             {loading ? (
@@ -274,28 +346,35 @@ const Dashboard = () => {
       {/* ================= PERT MODAL ================= */}
       {showPert && (
         <div className="pert-overlay" onClick={() => setShowPert(false)}>
-          <div className={`pert-modal ${isFullscreen ? 'fullscreen' : ''}`} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={`pert-modal ${isFullscreen ? "fullscreen" : ""}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="pert-header">
               <div className="pert-header-left">
                 <h2>PERT Planning</h2>
                 <div className="pert-subtitle">
-                  Project Start: {projectStartDate.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+                  Project Start:{" "}
+                  {projectStartDate.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
                   })}
                 </div>
               </div>
               <div className="pert-header-right">
-                <button 
+                <button
                   className="fullscreen-btn"
                   onClick={toggleFullscreen}
                   title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                 >
                   {isFullscreen ? "⤓" : "⤢"}
                 </button>
-                <button className="close-btn" onClick={() => setShowPert(false)}>
+                <button
+                  className="close-btn"
+                  onClick={() => setShowPert(false)}
+                >
                   ×
                 </button>
               </div>
@@ -313,14 +392,16 @@ const Dashboard = () => {
                         <div className="pert-term-header">
                           <span className="pert-term-name">{item.term}</span>
                         </div>
-                        <div className="pert-term-definition">{item.definition}</div>
+                        <div className="pert-term-definition">
+                          {item.definition}
+                        </div>
                         <div className="pert-term-example">
                           <strong>Example:</strong> {item.example}
                         </div>
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* Edge Example */}
                   <div className="edge-example">
                     <h4>🔴 Arc Dependency Example:</h4>
@@ -333,8 +414,10 @@ const Dashboard = () => {
                       <div className="example-node">Task B</div>
                     </div>
                     <p className="example-description">
-                      <strong>Task B depends on Task A</strong><br/>
-                      Arcs show task dependencies. Red arcs indicate critical path.
+                      <strong>Task B depends on Task A</strong>
+                      <br />
+                      Arcs show task dependencies. Red arcs indicate critical
+                      path.
                     </p>
                   </div>
                 </div>
@@ -345,42 +428,53 @@ const Dashboard = () => {
                   <div className="path-summary">
                     <div className="summary-item">
                       <span className="summary-label">Project Duration:</span>
-                      <span className="summary-value">{pertGraph.projectDuration} days</span>
+                      <span className="summary-value">
+                        {pertGraph.projectDuration} days
+                      </span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Completion Date:</span>
                       <span className="summary-value">
                         {(() => {
                           const endDate = new Date(projectStartDate);
-                          endDate.setDate(endDate.getDate() + pertGraph.projectDuration);
-                          return endDate.toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric' 
+                          endDate.setDate(
+                            endDate.getDate() + pertGraph.projectDuration
+                          );
+                          return endDate.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
                           });
                         })()}
                       </span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Critical Tasks:</span>
-                      <span className="summary-value critical-count">{criticalPath.length}</span>
+                      <span className="summary-value critical-count">
+                        {criticalPath.length}
+                      </span>
                     </div>
                   </div>
-                  
+
                   {criticalPath.length > 0 && (
                     <div className="critical-tasks-list">
                       <h4>Critical Tasks (Zero Slack):</h4>
                       <div className="tasks-scroll">
                         {criticalPath.map((taskId, index) => {
-                          const node = pertGraph.nodes.find((n) => n.id === taskId);
-                          const label = node?.data?.label?.label || node?.data?.label?.full_label || `Task ${taskId}`;
+                          const node = pertGraph.nodes.find(
+                            (n) => n.id === taskId
+                          );
+                          const label =
+                            node?.data?.label?.label ||
+                            node?.data?.label?.full_label ||
+                            `Task ${taskId}`;
                           const duration = node?.data?.label?.duration || "N/A";
                           const es = node?.data?.label?.es || 0;
                           const ls = node?.data?.label?.ls || 0;
                           const ef = node?.data?.label?.ef || 0;
                           const lf = node?.data?.label?.lf || 0;
                           const slack = node?.data?.label?.slack || 0;
-                          
+
                           return (
                             <div key={taskId} className="critical-task-item">
                               <div className="task-index">{index + 1}</div>
@@ -392,7 +486,9 @@ const Dashboard = () => {
                                   <span className="metric">LS: {ls}</span>
                                   <span className="metric">LF: {lf}</span>
                                   <span className="metric">Slack: {slack}</span>
-                                  <span className="metric">Dur: {duration}d</span>
+                                  <span className="metric">
+                                    Dur: {duration}d
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -405,56 +501,171 @@ const Dashboard = () => {
               </div>
 
               {/* PERT Graph */}
-              <div className="pert-graph-container" ref={reactFlowRef}>
-                {pertGraph.nodes.length > 0 ? (
-                  <div className="reactflow-wrapper">
-                    <ReactFlow
-                      nodes={pertGraph.nodes}
-                      edges={pertGraph.edges}
-                      nodeTypes={{ pertNode: PertNode }}
-                      fitView
-                      fitViewOptions={{ padding: 0.3, duration: 800 }}
-                      defaultEdgeOptions={{
-                        type: 'smoothstep',
-                        animated: false,
-                        style: { strokeWidth: 2 }
-                      }}
-                    >
-                      <Background variant="dots" gap={20} size={1} />
-                      <MiniMap 
-                        nodeStrokeColor={(n) => (n.data?.isCritical ? '#ff4444' : '#1976d2')}
-                        nodeColor={(n) => (n.data?.isCritical ? '#fff0f0' : '#e3f2fd')}
-                      />
-                      <Controls />
-                    </ReactFlow>
-                    
-                    {/* Arc Legend */}
-                    <div className="arc-legend">
-                      <div className="arc-legend-title">Dependency Arcs:</div>
-                      <div className="arc-legend-items">
-                        <div className="arc-legend-item">
-                          <div className="arc-sample critical"></div>
-                          <span>Critical Path Arc</span>
-                        </div>
-                        <div className="arc-legend-item">
-                          <div className="arc-sample normal"></div>
-                          <span>Normal Dependency Arc</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="empty-pert-graph">
-                    <div className="empty-icon">📊</div>
-                    <h3>No PERT Data Available</h3>
-                    <p>This project doesn't have task dependencies defined.</p>
-                  </div>
-                )}
-              </div>
+           <div className="pert-graph-container" ref={reactFlowRef}>
+  {pertGraph.nodes.length > 0 ? (
+    <div className="reactflow-wrapper" style={{ width: '100%', height: '600px' }}>
+     <ReactFlow
+  nodes={pertGraph.nodes}
+  edges={pertGraph.edges}
+  nodeTypes={nodeTypes}
+  fitView
+  fitViewOptions={{ padding: 0.2, duration: 800 }}
+  defaultEdgeOptions={{ type: 'smoothstep' }}
+  nodesDraggable
+  nodesConnectable={false}
+  elementsSelectable
+  panOnScroll
+  zoomOnScroll
+  panOnDrag
+  proOptions={{ hideAttribution: true }}
+  onInit={(instance) => {
+    setTimeout(() => {
+      instance.fitView({ padding: 0.2, duration: 600 });
+    }, 100);
+  }}
+>
+
+        {/* ⚠️ DÉFINITIONS SVG ABSOLUMENT NÉCESSAIRES */}
+        <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+          <defs>
+            <marker
+              id="arrowhead-normal"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#1976d2" />
+            </marker>
+            
+            <marker
+              id="arrowhead-critical"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#ff4444" />
+            </marker>
+          </defs>
+        </svg>
+        
+        <Background 
+          variant="dots" 
+          gap={20} 
+          size={1} 
+          color="#e0e0e0" 
+        />
+        <MiniMap
+          nodeStrokeColor={(n) => n.data?.isCritical ? "#ff4444" : "#1976d2"}
+          nodeColor={(n) => n.data?.isCritical ? "#fff0f0" : "#e3f2fd"}
+          nodeBorderRadius={8}
+          maskColor="rgba(240, 240, 240, 0.7)"
+        />
+        <Controls 
+          showInteractive={false}
+          position="top-right"
+        />
+      </ReactFlow>
+      
+      {/* Arc Legend */}
+      <div className="arc-legend">
+        <div className="arc-legend-title">Dependency Arcs:</div>
+        <div className="arc-legend-items">
+          <div className="arc-legend-item">
+            <div className="arc-sample critical"></div>
+            <span>Critical Path Arc</span>
+          </div>
+          <div className="arc-legend-item">
+            <div className="arc-sample normal"></div>
+            <span>Normal Dependency Arc</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="empty-pert-graph">
+      <div className="empty-icon">📊</div>
+      <h3>No PERT Data Available</h3>
+      <p>This project doesn't have task dependencies defined.</p>
+    </div>
+  )}
+</div>
             </div>
           </div>
         </div>
       )}
+      {showCreateModal && (
+  <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      
+      {/* Close Button */}
+      <button
+        className="modal-close-btn"
+        onClick={() => setShowCreateModal(false)}
+      >
+        ×
+      </button>
+
+      <h2>Create Project</h2>
+
+      <form onSubmit={handleCreateProject}>
+        {/* Project Title */}
+        <div className="form-group">
+          <label>Project Title</label>
+          <input
+            type="text"
+            placeholder="Enter project title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+        </div>
+
+        {/* Description */}
+        <div className="form-group">
+          <label>Description</label>
+          <textarea
+            placeholder="Project description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+          />
+        </div>
+
+        {/* Start Date */}
+        <div className="form-group">
+          <label>Start Date</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="cancel-btn"
+            onClick={() => setShowCreateModal(false)}
+          >
+            Cancel
+          </button>
+
+          <button type="submit" className="create-btn">
+            Create Project
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };
